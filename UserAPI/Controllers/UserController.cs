@@ -86,4 +86,37 @@ public class UserController : ControllerBase
         return user;
     }
 
+
+    [HttpPut("passwordReset")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordUserResource userResource)
+    {
+        var user = await userRepository.GetUser(userResource.UserName);
+
+        if (user == null || !securityService.CheckPassword(userResource.OldPassword, user.HashedPassword))
+        {
+            return BadRequest(new
+            {
+                Message = "Failed to reset user password.",
+                Error = "UserName or Password is incorrect!"
+            });
+        }
+
+
+        user.HashedPassword = securityService.HashPassword(userResource.NewPassword);
+
+        ReEncryptUserData(userResource, user);
+
+        await unitOfWork.CompleteAsync();
+
+        return Accepted(new
+        {
+            Message = "User password has been successfully reset."
+        });
+    }
+    private void ReEncryptUserData(ResetPasswordUserResource userResource, User user)
+    {
+        var decryptedData = securityService.Decrypt(user.EncryptedData, userResource.OldPassword);
+        user.EncryptedData = securityService.Encrypt(decryptedData, userResource.NewPassword);
+    }
+
 }

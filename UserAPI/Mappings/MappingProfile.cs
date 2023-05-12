@@ -18,5 +18,14 @@ public class MappingProfile : Profile
             .ForMember(ur => ur.FatherName, opt => opt.Ignore())
             .ForMember(ur => ur.FamilyName, opt => opt.Ignore());
 
+
+
+        CreateMap<UserSaveResource, User>()
+            .ForMember(u => u.Id, opt => opt.Ignore())
+            .ForMember(u => u.HashedPassword, opt => opt.Ignore())
+            .ForMember(u => u.EncryptedData, opt => opt.Ignore());
+
+        CreateMap<UserSaveResource, BirthdateAddressCombination>();
+
     }
 }
