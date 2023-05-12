@@ -50,4 +50,40 @@ public class UserController : ControllerBase
         return result;
     }
 
+
+    [HttpPost("new")]
+    public async Task<IActionResult> CreateUser([FromBody] UserSaveResource userResource)
+    {
+        User user = BuildUser(userResource);
+
+        var errorMessage = await userRepository.Add(user);
+
+        if (!string.IsNullOrEmpty(errorMessage))
+        {
+            return BadRequest(new
+            {
+                Message = "Failed to add user",
+                Error = errorMessage
+            });
+        }
+
+        await unitOfWork.CompleteAsync();
+
+        return Created(nameof(CreateUser), new
+        {
+            Message = "User added successfully"
+        });
+    }
+    private User BuildUser(UserSaveResource userResource)
+    {
+        var user = mapper.Map<UserSaveResource, User>(userResource);
+
+        user.HashedPassword = securityService.HashPassword(userResource.Password);
+
+        var userData = mapper.Map<UserSaveResource, BirthdateAddressCombination>(userResource);
+
+        user.EncryptedData = securityService.Encrypt(userData, userResource.Password);
+        return user;
+    }
+
 }
