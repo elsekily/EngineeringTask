@@ -10,7 +10,7 @@
 *.userosscache
 *.sln.docstates
 .config/
-
+wwwroot/
 *.db
 *.db-wal
 *.db-shm

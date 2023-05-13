@@ -1,11 +1,8 @@
-using System.Security.Cryptography;
-using System.Text;
 using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using UserAPI.Core;
 using UserAPI.Entities.Models;
 using UserAPI.Entities.Resources;
-using UserAPI.Persistence.repositories;
 
 namespace UserAPI.Controllers;
 

@@ -1,5 +1,9 @@
+using System.Reflection;
+using log4net;
+using log4net.Config;
 using Microsoft.EntityFrameworkCore;
 using UserAPI.Core;
+using UserAPI.Middleware;
 using UserAPI.Persistence;
 using UserAPI.Persistence.repositories;
 
@@ -20,7 +24,14 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ISecurityService, SecurityService>();
 
-//to use in development Environment only
+
+builder.Services.AddSingleton<log4net.ILog>(provider =>
+{
+    var logRepository = LogManager.GetRepository(Assembly.GetEntryAssembly());
+    return LogManager.GetLogger(logRepository.Name, "UserAPI");
+});
+
+//to use only in development Environment 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("CorsPolicy", builder =>
@@ -29,7 +40,7 @@ builder.Services.AddCors(options =>
             .AllowAnyHeader()
             .AllowCredentials());
 });
-
+///////////////////////
 
 
 var app = builder.Build();
@@ -41,12 +52,20 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
     app.UseCors("CorsPolicy");
 }
+app.UseMiddleware<LoggingMiddleware>();
 app.UseHttpsRedirection();
-
 app.UseAuthorization();
 
-app.MapControllers();
+app.UseStaticFiles();
 
+app.UseRouting();
+
+app.UseEndpoints(endpoints =>
+{
+    endpoints.MapFallbackToFile("index.html");
+});
+
+app.MapControllers();
 
 using (var scope = app.Services.CreateScope())
 {
@@ -54,6 +73,9 @@ using (var scope = app.Services.CreateScope())
     var context = services.GetRequiredService<UserDbContext>();
     context.Database.Migrate();
 }
+
+var logRepository = LogManager.GetRepository(Assembly.GetEntryAssembly());
+XmlConfigurator.Configure(logRepository, new FileInfo("log4net.config"));
 
 
 app.Run();
