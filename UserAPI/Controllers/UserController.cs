@@ -27,25 +27,21 @@ public class UserController : ControllerBase
     }
 
 
-    [HttpGet]
+    [HttpPost]
     public async Task<IActionResult> GetUser([FromBody] UserCredentialsResource userResource)
     {
         var user = await userRepository.GetUser(userResource.UserName);
 
         if (user == null || !securityService.CheckPassword(userResource.Password, user.HashedPassword))
-            return BadRequest(new
-            {
-                Message = "Failed to Get user.",
-                Error = "UserName or Password is incorrect!"
-            });
+            return BadRequest("Failed to Get user. UserName or Password is incorrect!");
 
-        var result = MapUserToUserResource(user, userResource);
+        var result = MapUserToUserResource(user, userResource.Password);
         return Ok(result);
     }
-    private UserResource MapUserToUserResource(User user, UserCredentialsResource userResource)
+    private UserResource MapUserToUserResource(User user, string password)
     {
         var result = mapper.Map<User, UserResource>(user);
-        var userDecryptedData = securityService.Decrypt(user.EncryptedData, userResource.Password);
+        var userDecryptedData = securityService.Decrypt(user.EncryptedData, password);
         mapper.Map<BirthdateAddressCombination, UserResource>(userDecryptedData, result);
         return result;
     }
@@ -54,25 +50,20 @@ public class UserController : ControllerBase
     [HttpPost("new")]
     public async Task<IActionResult> CreateUser([FromBody] UserSaveResource userResource)
     {
-        User user = BuildUser(userResource);
+        var user = BuildUser(userResource);
 
         var errorMessage = await userRepository.Add(user);
 
         if (!string.IsNullOrEmpty(errorMessage))
-        {
-            return BadRequest(new
-            {
-                Message = "Failed to add user",
-                Error = errorMessage
-            });
-        }
+            return BadRequest("Failed to add user. " + errorMessage);
+
 
         await unitOfWork.CompleteAsync();
 
-        return Created(nameof(CreateUser), new
-        {
-            Message = "User added successfully"
-        });
+        var userFromDB = await userRepository.GetUser(userResource.UserName);
+        var result = MapUserToUserResource(userFromDB, userResource.Password);
+
+        return Created(nameof(CreateUser), result);
     }
     private User BuildUser(UserSaveResource userResource)
     {
@@ -93,14 +84,7 @@ public class UserController : ControllerBase
         var user = await userRepository.GetUser(userResource.UserName);
 
         if (user == null || !securityService.CheckPassword(userResource.OldPassword, user.HashedPassword))
-        {
-            return BadRequest(new
-            {
-                Message = "Failed to reset user password.",
-                Error = "UserName or Password is incorrect!"
-            });
-        }
-
+            return BadRequest("Failed to reset user password. UserName or Password is incorrect!");
 
         user.HashedPassword = securityService.HashPassword(userResource.NewPassword);
 
@@ -108,10 +92,10 @@ public class UserController : ControllerBase
 
         await unitOfWork.CompleteAsync();
 
-        return Accepted(new
-        {
-            Message = "User password has been successfully reset."
-        });
+        var userFromDB = await userRepository.GetUser(userResource.UserName);
+        var result = MapUserToUserResource(userFromDB, userResource.NewPassword);
+
+        return Accepted(result);
     }
     private void ReEncryptUserData(ResetPasswordUserResource userResource, User user)
     {
