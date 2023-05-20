@@ -50,20 +50,23 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+
     app.UseCors("CorsPolicy");
 }
 app.UseMiddleware<LoggingMiddleware>();
 app.UseHttpsRedirection();
 app.UseAuthorization();
 
-app.UseStaticFiles();
-
 app.UseRouting();
 
-app.UseEndpoints(endpoints =>
+if (app.Environment.IsProduction())
 {
-    endpoints.MapFallbackToFile("index.html");
-});
+    app.UseStaticFiles();
+    app.UseEndpoints(endpoints =>
+    {
+        endpoints.MapFallbackToFile("index.html");
+    });
+}
 
 app.MapControllers();
 
