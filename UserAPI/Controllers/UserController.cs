@@ -23,7 +23,8 @@ public class UserController : ControllerBase
         this.securityService = securityService;
     }
 
-
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [HttpPost]
     public async Task<IActionResult> GetUser([FromBody] UserCredentialsResource userResource)
     {
@@ -35,26 +36,20 @@ public class UserController : ControllerBase
         var result = MapUserToUserResource(user, userResource.Password);
         return Ok(result);
     }
-    private UserResource MapUserToUserResource(User user, string password)
-    {
-        var result = mapper.Map<User, UserResource>(user);
-        var userDecryptedData = securityService.Decrypt(user.EncryptedData, password);
-        mapper.Map<BirthdateAddressCombination, UserResource>(userDecryptedData, result);
-        return result;
-    }
-
-
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [HttpPost("new")]
     public async Task<IActionResult> CreateUser([FromBody] UserSaveResource userResource)
     {
+        var existingUser = await userRepository.GetUser(userResource.UserName);
+        if (existingUser == null)
+        {
+            return BadRequest($"Failed to add user. User with username '{userResource.UserName}' already exists.");
+        }
+
         var user = BuildUser(userResource);
 
-        var errorMessage = await userRepository.Add(user);
-
-        if (!string.IsNullOrEmpty(errorMessage))
-            return BadRequest("Failed to add user. " + errorMessage);
-
-
+        await userRepository.Add(user);
         await unitOfWork.CompleteAsync();
 
         var userFromDB = await userRepository.GetUser(userResource.UserName);
@@ -62,20 +57,9 @@ public class UserController : ControllerBase
 
         return Created(nameof(CreateUser), result);
     }
-    private User BuildUser(UserSaveResource userResource)
-    {
-        var user = mapper.Map<UserSaveResource, User>(userResource);
-
-        user.HashedPassword = securityService.HashPassword(userResource.Password);
-
-        var userData = mapper.Map<UserSaveResource, BirthdateAddressCombination>(userResource);
-
-        user.EncryptedData = securityService.Encrypt(userData, userResource.Password);
-        return user;
-    }
-
-
     [HttpPut("passwordReset")]
+    [ProducesResponseType(StatusCodes.Status202Accepted)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordUserResource userResource)
     {
         var user = await userRepository.GetUser(userResource.UserName);
@@ -94,6 +78,30 @@ public class UserController : ControllerBase
 
         return Accepted(result);
     }
+
+
+    private UserResource MapUserToUserResource(User user, string password)
+    {
+        var result = mapper.Map<User, UserResource>(user);
+        var userDecryptedData = securityService.Decrypt(user.EncryptedData, password);
+        mapper.Map<BirthdateAddressCombination, UserResource>(userDecryptedData, result);
+        return result;
+    }
+
+
+    private User BuildUser(UserSaveResource userResource)
+    {
+        var user = mapper.Map<UserSaveResource, User>(userResource);
+
+        user.HashedPassword = securityService.HashPassword(userResource.Password);
+
+        var userData = mapper.Map<UserSaveResource, BirthdateAddressCombination>(userResource);
+
+        user.EncryptedData = securityService.Encrypt(userData, userResource.Password);
+        return user;
+    }
+
+
     private void ReEncryptUserData(ResetPasswordUserResource userResource, User user)
     {
         var decryptedData = securityService.Decrypt(user.EncryptedData, userResource.OldPassword);

@@ -14,17 +14,9 @@ public class UserRepository : IUserRepository
     {
         this.context = context;
     }
-    public async Task<string> Add(User user)
+    public async Task Add(User user)
     {
-        var existingUser = await GetUser(user.UserName);
-
-        if (existingUser != null)
-        {
-            return $"User with username '{user.UserName}' already exists.";
-        }
-
         await context.Users.AddAsync(user);
-        return string.Empty;
     }
 
     public async Task<User> GetUser(string userName)
