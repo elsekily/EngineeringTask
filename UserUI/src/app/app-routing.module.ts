@@ -7,7 +7,7 @@ import { AppComponent } from './app.component';
 import { HomeComponent } from './Components/home/home.component';
 
 const routes: Routes = [
-  { path: '', component: AppComponent, pathMatch:'full'},
+  { path: '', component: HomeComponent, pathMatch:'full'},
   { path: 'home', component: HomeComponent},
   { path: 'register', component: RegesiterUserComponent },
   { path: 'getuser', component: GetUserDataComponent },
