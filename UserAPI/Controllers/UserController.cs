@@ -42,7 +42,7 @@ public class UserController : ControllerBase
     public async Task<IActionResult> CreateUser([FromBody] UserSaveResource userResource)
     {
         var existingUser = await userRepository.GetUser(userResource.UserName);
-        if (existingUser == null)
+        if (existingUser != null)
         {
             return BadRequest($"Failed to add user. User with username '{userResource.UserName}' already exists.");
         }
